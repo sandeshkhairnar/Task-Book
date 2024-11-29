@@ -266,7 +266,6 @@ fun TaskBookApp(viewModel: TaskViewModel) {
                 onDismiss = { showAddTaskDialog = false },
                 onTaskAdded = { name, description, estimatedTime, hours, minutes, seconds ->
                     val newTask = Task(
-                        id = tasks.size,
                         name = name,
                         description = description,
                         estimatedTime = estimatedTime,
@@ -397,18 +396,14 @@ fun ContributionsScreen(completedTasks: List<Task>) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .background(Color(0xFF666666)) // Light background color
+            .background(Color.White) // Changed background to white
     ) {
         Text(
             "Total Contributions: ${completedTasks.size}",
             fontSize = 18.sp,
-            color = Color(0xFF666666), // Lighter text color
+            color = Color.Black, // Changed text color to black
             modifier = Modifier.padding(bottom = 16.dp)
         )
-
-
-    // Display total contributions
-
 
         // Calendar view for displaying tasks
         CalendarView(
@@ -433,7 +428,7 @@ fun ContributionsScreen(completedTasks: List<Task>) {
                 item {
                     Text(
                         "No tasks completed on this day.",
-                        color = Color.Gray,
+                        color = Color.Black, // Changed to black
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
