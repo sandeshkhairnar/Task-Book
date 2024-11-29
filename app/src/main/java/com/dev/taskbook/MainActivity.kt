@@ -97,7 +97,7 @@ data class Task(
     var isRunning: Boolean = false,
     var elapsedTime: Int = 0, // in seconds
     var completedDateTime: LocalDateTime? = null,
-    val isPaused: Boolean = false,
+    val isPaused: Boolean = true,
     val assignedHours: Int = 0,
     val assignedMinutes: Int = 0,
     val assignedSeconds: Int = 0,
@@ -152,20 +152,42 @@ fun TaskBookApp(viewModel: TaskViewModel) {
         activeTimerJob?.cancel() // Cancel any existing timer
 
         activeTimerJob = coroutineScope.launch {
-            while (isActive) {
+            var currentTask = task // Use var to allow modifications
+            while (isActive && currentTask.elapsedTime < currentTask.estimatedTime * 60) {
                 delay(1000) // Update every second
-                viewModel.updateTask(
-                    task.copy(
-                        elapsedTime = task.elapsedTime + 1,
-                        progress = ((task.elapsedTime + 1) / 60f) / task.estimatedTime,
-                        isRunning = true,
-                        isCompleted = ((task.elapsedTime + 1) / 60f) / task.estimatedTime >= 1.0f,
-                        completedDate = if (((task.elapsedTime + 1) / 60f) / task.estimatedTime >= 1.0f)
-                            LocalDate.now().format(DateTimeFormatter.ISO_DATE)
-                        else null
-                    )
+                val updatedElapsedTime = currentTask.elapsedTime + 1
+                val updatedProgress = (updatedElapsedTime / 60f) / currentTask.estimatedTime
+
+                val updatedTask = currentTask.copy(
+                    elapsedTime = updatedElapsedTime,
+                    progress = minOf(updatedProgress, 1f),
+                    isRunning = true,
+                    isCompleted = updatedProgress >= 1.0f,
+                    completedDate = if (updatedProgress >= 1.0f)
+                        LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+                    else null,
+                    completedDateTime = if (updatedProgress >= 1.0f)
+                        LocalDateTime.now()
+                    else null
                 )
+
+                viewModel.updateTask(updatedTask)
+
+                // Update the current task state
+                currentTask = updatedTask
             }
+        }
+    }
+
+    fun handleTaskAction(task: Task) {
+        if (!task.isRunning) {
+            // Start the task
+            viewModel.startTimer(task)
+            startTaskTimer(task)
+        } else {
+            // Pause the task
+            viewModel.pauseTimer(task)
+            activeTimerJob?.cancel()
         }
     }
 
@@ -175,24 +197,15 @@ fun TaskBookApp(viewModel: TaskViewModel) {
         viewModel.updateRunningTasksPaused()
     }
 
-    fun handleTaskAction(task: Task) {
-        if (!task.isRunning) {
-            // Start the task
-            viewModel.setActiveTask(task)
-            startTaskTimer(task)
-        } else {
-            // Pause the task
-            pauseTaskTimer()
-        }
-    }
-
     fun handleTaskCompletion(task: Task) {
         viewModel.updateTask(
             task.copy(
                 isCompleted = true,
                 completedDate = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
+                completedDateTime = LocalDateTime.now(),
                 progress = 1f,
-                isRunning = false
+                isRunning = false,
+                elapsedTime = task.estimatedTime * 60 // Set to full estimated time
             )
         )
         pauseTaskTimer()
@@ -203,6 +216,7 @@ fun TaskBookApp(viewModel: TaskViewModel) {
             task.copy(
                 isCompleted = false,
                 completedDate = null,
+                completedDateTime = null,
                 progress = 0f,
                 elapsedTime = 0,
                 isRunning = false

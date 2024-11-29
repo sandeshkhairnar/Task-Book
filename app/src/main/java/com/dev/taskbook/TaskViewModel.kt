@@ -33,6 +33,12 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
 
     fun updateTask(task: Task) = viewModelScope.launch {
         repository.update(task)
+        // Refresh the tasks list after update
+        _allTasks.update { currentTasks ->
+            currentTasks.map {
+                if (it.id == task.id) task else it
+            }
+        }
     }
 
     fun deleteTask(task: Task) = viewModelScope.launch {
@@ -40,20 +46,52 @@ class TaskViewModel(private val repository: TaskRepository) : ViewModel() {
     }
 
     fun updateRunningTasksPaused() = viewModelScope.launch {
-        val runningTasks = _allTasks.value.filter { it.isRunning }
-        runningTasks.forEach { task ->
-            updateTask(task.copy(isRunning = false))
+        val updatedTasks = _allTasks.value.map { task ->
+            if (task.isRunning) {
+                task.copy(
+                    isRunning = false,
+                    isPaused = true
+                )
+            } else task
         }
+
+        updatedTasks.forEach { repository.update(it) }
+        _allTasks.value = updatedTasks
     }
 
     fun setActiveTask(activeTask: Task) = viewModelScope.launch {
-        _allTasks.value.forEach { task ->
+        val updatedTasks = _allTasks.value.map { task ->
             if (task.id == activeTask.id) {
-                updateTask(task.copy(isRunning = true))
+                task.copy(
+                    isRunning = true,
+                    isPaused = false
+                )
             } else {
-                updateTask(task.copy(isRunning = false))
+                task.copy(
+                    isRunning = false,
+                    isPaused = true
+                )
             }
         }
+
+        updatedTasks.forEach { repository.update(it) }
+        _allTasks.value = updatedTasks
+    }
+
+    fun startTimer(task: Task) = viewModelScope.launch {
+        val updatedTask = task.copy(
+            isRunning = true,
+            isPaused = false
+        )
+        updateTask(updatedTask)
+    }
+
+    fun pauseTimer(task: Task) = viewModelScope.launch {
+        val updatedTask = task.copy(
+            isRunning = false,
+            isPaused = true
+        )
+        updateTask(updatedTask)
     }
 
     companion object {
